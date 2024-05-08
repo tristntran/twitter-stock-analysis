@@ -5,7 +5,19 @@ import os
 import requests
 import pandas as pd
 
-def convert_to_dataframe(response: requests.models.Response) -> pd.DataFrame:
+def check_response_and_convert(response: requests.models.Response) -> None:
+    """Checks the response object for errors
+
+    Args:
+        response (requests.models.Response): response object from the reddit api
+    """
+    if response.status_code == 200:
+        return convert_to_dataframe(response.json()['data']["children"])
+    else:
+        print(f"Request failed with status code {response.status_code}")
+        return None
+
+def convert_to_dataframe(response_json: dict) -> pd.DataFrame:
     """converts a response object to a pandas dataframe
 
     Args:
@@ -14,15 +26,11 @@ def convert_to_dataframe(response: requests.models.Response) -> pd.DataFrame:
     Returns:
         pd.DataFrame: it's a great dataframe
     """
-    if response.status_code == 200:
-        # Convert response to a DataFrame
-        df = pd.json_normalize(response.json()['data']["children"])
-        # Rename columns
-        df = rename_columns(df)
-        return df
-    else:
-        print(f"Request failed with status code {response.status_code}")
-        return None
+    # Convert response to a DataFrame
+    df = pd.json_normalize(response_json)
+    # Rename columns
+    df = rename_columns(df)
+    return df
 
 def rename_columns(df: pd.DataFrame) -> pd.DataFrame:
     """convenience tool to rename columns in a pandas dataframe
@@ -78,7 +86,7 @@ def get_posts(headers,
                        headers=headers,
                        params = {"limit": 100},
                        timeout=30)
-    return convert_to_dataframe(res)
+    return check_response_and_convert(res)
 
 def search_flair(headers, subreddit: str = "wallstreetbets",
                  flair: str = "Gain")-> pd.DataFrame:
@@ -96,7 +104,7 @@ def search_flair(headers, subreddit: str = "wallstreetbets",
                        headers=headers,
                        params = {"limit": 100, "q": f"flair_name:{flair}"},
                        timeout=30)
-    return convert_to_dataframe(res)
+    return check_response_and_convert(res)
 
 def search_daily(headers, subreddit: str = "wallstreetbets")-> pd.DataFrame:
     """search only daily discussion threads
@@ -108,8 +116,10 @@ def search_daily(headers, subreddit: str = "wallstreetbets")-> pd.DataFrame:
     query = 'Daily Discussion Thread'
     url = f'https://oauth.reddit.com/r/{subreddit}/search?q={query}&sort=new&restrict_sr=on'
 
-    response = requests.get(url, headers=headers, timeout=30)
-    return convert_to_dataframe(response)
+    response = requests.get(url, headers=headers,
+                            timeout=30,
+                            params={"limit": 100})
+    return check_response_and_convert(response)
 
 def search_comments(headers, thread_id,
                     subreddit: str = "wallstreetbets")-> pd.DataFrame:
@@ -128,7 +138,14 @@ def search_comments(headers, thread_id,
         f'https://oauth.reddit.com/r/{subreddit}/comments/{thread_id}'
     comment_response = requests.get(comments_url, headers=headers,
                                     timeout=30)
-    return convert_to_dataframe(comment_response)
+    if comment_response.status_code == 200:
+        thread_json, comment_json = comment_response.json()
+        comment_json = comment_json['data']['children']
+
+        return convert_to_dataframe(comment_json)
+    else:
+        print("Request failed with status code {comment_response.status_code}")
+        return None
 
 def get_daily_discussion_comments(headers,
         subreddit: str = "wallstreetbets")-> pd.DataFrame:
@@ -145,11 +162,7 @@ def get_daily_discussion_comments(headers,
     thread_ids = daily_discussion['id']
     list_of_comments = []
     for tid in thread_ids:
-        _, comments = search_comments(headers, tid)
-        list_of_comments.append(pd
-                                .json_normalize(
-                                    comments['data'][1]['children']
-                                )
-                            )
-    df = pd.concat(list_of_comments)
-    return df
+        comments = search_comments(headers, tid)
+        list_of_comments.append(comments)
+    return list_of_comments
+
