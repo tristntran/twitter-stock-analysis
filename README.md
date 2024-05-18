@@ -9,7 +9,7 @@ Use pip to install the required packages
 pip install -r requirements.txt
 ```
 
-Use conda to install the required packages
+Or use conda to install the required packages
 
 ```bash
 conda install --file requirements.txt
@@ -30,10 +30,12 @@ SECRET_REDDIT_KEY = 'secret key for a reddit script application'
 CLIENT_ID = 'personal use script for a reddit script application'
 REDDIT_USERNAME = 'username for a valid reddit account'
 REDDIT_PASSWORD = 'password to a valid reddit account'
-OPEN_AI_KEY = 'openai secret key'
+OPEN_AI_KEY = 'openai secret key0'
 ```
 ## Execution
 The analysis can be run from the file `analysis.ipynb`
 
+You can also try out the streamlit app using `python -m streamlit src/app.py`
+
 the overall flow should be as follows
-![the flow diagram](flow.png)    
+![the flow diagram](flow.png)
