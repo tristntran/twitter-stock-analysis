@@ -1,2 +1,4 @@
 GetOldTweets3
 yfinance
+streamlit
+openai
